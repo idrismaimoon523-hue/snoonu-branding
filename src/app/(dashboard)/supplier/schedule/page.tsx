@@ -4,8 +4,10 @@ import { useEffect, useState, useRef } from 'react';
 import { getUser } from '@/lib/auth';
 import { getSupplierJobs, markDidNotAppear, uploadImagesBase64, fileToBase64 } from '@/lib/api';
 import type { ScheduleJob } from '@/types';
+import { formatDate, formatTime, shortID } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import FleetBadge from '@/components/ui/FleetBadge';
 import Modal from '@/components/ui/Modal';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -56,7 +58,7 @@ export default function SupplierSchedulePage() {
   async function handleUpload() {
     if (!selected) return;
     if (!files.left || !files.back || !files.right) {
-      setMsg('Please select all 3 images before uploading.');
+      setMsg('Please capture all 3 photos before uploading.');
       return;
     }
     setSubmitting(true); setMsg('');
@@ -121,19 +123,19 @@ export default function SupplierSchedulePage() {
         keyField="JobID"
         emptyMessage="No jobs assigned to you yet."
         columns={[
-          { key: 'JobID',           header: 'Job ID',   className: 'font-mono text-xs' },
-          { key: 'JobType',         header: 'Type',     render: r => <Badge status={String(r.JobType)} /> },
-          { key: 'PlateNumber',     header: 'Plate No.',className: 'font-medium' },
+          { key: 'JobID',           header: 'Job ID',    render: r => <span className="font-mono text-xs text-zinc-500">{shortID(String(r.JobID))}</span> },
+          { key: 'JobType',         header: 'Type',      render: r => <Badge status={String(r.JobType)} /> },
+          { key: 'PlateNumber',     header: 'Plate No.', className: 'font-medium' },
           { key: 'CompanyName',     header: 'Company' },
           { key: 'DriverName',      header: 'Driver' },
           { key: 'DriverPhone',     header: 'Phone' },
-          { key: 'FleetType',       header: 'Fleet' },
+          { key: 'FleetType',       header: 'Fleet',     render: r => <FleetBadge fleet={String(r.FleetType)} /> },
           { key: 'CarBrand',        header: 'Brand' },
           { key: 'CarModel',        header: 'Model' },
-          { key: 'AppointmentDate', header: 'Date' },
-          { key: 'AppointmentTime', header: 'Time' },
+          { key: 'AppointmentDate', header: 'Date',      render: r => <span className="text-zinc-600 text-xs">{formatDate(String(r.AppointmentDate))}</span> },
+          { key: 'AppointmentTime', header: 'Time',      render: r => <span className="text-zinc-600 text-xs">{formatTime(String(r.AppointmentTime))}</span> },
           { key: 'Area',            header: 'Area' },
-          { key: 'Status',          header: 'Status',   render: r => <Badge status={String(r.Status)} /> },
+          { key: 'Status',          header: 'Status',    render: r => <Badge status={String(r.Status)} /> },
           {
             key: 'actions',
             header: 'Actions',
@@ -176,13 +178,13 @@ export default function SupplierSchedulePage() {
               <span className="text-zinc-600">{selected.PlateNumber} · {selected.DriverName} · {selected.JobType}</span>
             </div>
             {msg && <p className="text-sm text-red-600">{msg}</p>}
-            <p className="text-sm text-zinc-500">Upload all 3 required photos. Back photo must show the plate number clearly.</p>
+            <p className="text-sm text-zinc-500">Take all 3 required photos. Back photo must show the plate number clearly.</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {([
-                { key: 'left',  label: 'Left Side',          ref: leftRef  },
-                { key: 'back',  label: 'Back (Plate Visible)',ref: backRef  },
-                { key: 'right', label: 'Right Side',         ref: rightRef },
+                { key: 'left',  label: 'Left Side',           ref: leftRef  },
+                { key: 'back',  label: 'Back (Plate Visible)', ref: backRef  },
+                { key: 'right', label: 'Right Side',          ref: rightRef },
               ] as const).map(({ key, label, ref }) => (
                 <div key={key} className="flex flex-col gap-2">
                   <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
@@ -196,15 +198,21 @@ export default function SupplierSchedulePage() {
                       <img src={previews[key]} alt={key} className="w-full h-full object-cover" />
                     ) : (
                       <div className="text-center text-zinc-400 text-xs p-3">
-                        <svg className="h-8 w-8 mx-auto mb-1.5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <p className="font-medium">Click to select</p>
+                        {/* Camera icon */}
+                        <svg className="h-8 w-8 mx-auto mb-1.5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                          <circle cx="12" cy="13" r="4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="font-medium">Tap to take photo</p>
                       </div>
                     )}
                   </div>
+                  {/* capture="environment" forces camera on mobile */}
                   <input
                     ref={ref}
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     className="hidden"
                     onChange={e => handleFileChange(key, e.target.files?.[0] ?? null)}
                   />
@@ -236,7 +244,7 @@ export default function SupplierSchedulePage() {
             {msg && <p className="text-red-600">{msg}</p>}
             <p>Are you sure the driver did not appear for this appointment?</p>
             <div className="bg-zinc-50 rounded-lg border border-zinc-200 p-3 space-y-0.5">
-              <p><span className="font-medium">Job:</span> {selected.JobID}</p>
+              <p><span className="font-medium">Job:</span> {shortID(selected.JobID)}</p>
               <p><span className="font-medium">Plate:</span> {selected.PlateNumber}</p>
               <p><span className="font-medium">Driver:</span> {selected.DriverName} ({selected.DriverPhone})</p>
             </div>

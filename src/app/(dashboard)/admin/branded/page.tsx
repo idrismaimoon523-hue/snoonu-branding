@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { getBrandedVehicles } from '@/lib/api';
 import type { BrandedVehicle } from '@/types';
+import { formatDate } from '@/lib/utils';
+import FleetBadge from '@/components/ui/FleetBadge';
 import Input from '@/components/ui/Input';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -44,21 +46,9 @@ export default function AdminBrandedPage() {
 
       {/* Search / Filter bar */}
       <div className="card p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input
-          placeholder="Search by company…"
-          value={searchCompany}
-          onChange={e => setSearchCompany(e.target.value)}
-        />
-        <Input
-          placeholder="Search by plate number…"
-          value={searchPlate}
-          onChange={e => setSearchPlate(e.target.value)}
-        />
-        <Input
-          placeholder="Search by driver ID or name…"
-          value={searchDriver}
-          onChange={e => setSearchDriver(e.target.value)}
-        />
+        <Input placeholder="Search by company…"         value={searchCompany} onChange={e => setSearchCompany(e.target.value)} />
+        <Input placeholder="Search by plate number…"   value={searchPlate}   onChange={e => setSearchPlate(e.target.value)} />
+        <Input placeholder="Search by driver ID or name…" value={searchDriver} onChange={e => setSearchDriver(e.target.value)} />
       </div>
 
       <Table
@@ -72,11 +62,11 @@ export default function AdminBrandedPage() {
           { key: 'DriverPhone', header: 'Mobile' },
           { key: 'CompanyCode', header: '3PL Code' },
           { key: 'CompanyName', header: '3PL Name' },
-          { key: 'FleetType',   header: 'Fleet' },
+          { key: 'FleetType',   header: 'Fleet',        render: r => <FleetBadge fleet={String(r.FleetType)} /> },
           { key: 'CarBrand',    header: 'Brand' },
           { key: 'CarModel',    header: 'Model' },
           { key: 'CarYear',     header: 'Year' },
-          { key: 'BrandedDate', header: 'Branded Date' },
+          { key: 'BrandedDate', header: 'Branded Date', render: r => <span className="text-zinc-500 text-xs">{formatDate(String(r.BrandedDate))}</span> },
           { key: 'SupplierName',header: 'Supplier' },
         ]}
       />

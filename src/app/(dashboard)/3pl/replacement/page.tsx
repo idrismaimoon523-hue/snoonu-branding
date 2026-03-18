@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getUser } from '@/lib/auth';
 import { getReplacementRequests, createReplacementRequest, getBrandedVehicles, getDriver } from '@/lib/api';
 import type { ReplacementRequest, BrandedVehicle, Driver } from '@/types';
+import { formatDate, shortID } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -56,8 +57,14 @@ export default function ReplacementPage() {
         setDriverError(res.error || 'Driver not found');
         setNewDriverName(''); setNewDriverPhone('');
       } else {
-        setNewDriverName(res.driver.driverName);
-        setNewDriverPhone(res.driver.driverPhone);
+        // Restrict to own company drivers
+        if (res.driver.companyCode !== user?.companyCode) {
+          setDriverError('This driver does not belong to your company.');
+          setNewDriverName(''); setNewDriverPhone('');
+        } else {
+          setNewDriverName(res.driver.driverName);
+          setNewDriverPhone(res.driver.driverPhone);
+        }
       }
     } catch { setDriverError('Error fetching driver'); }
     finally { setFetchingDriver(false); }
@@ -68,6 +75,7 @@ export default function ReplacementPage() {
     setSuccessMsg(''); setError('');
     if (!plateNumber) { setError('Please select a vehicle'); return; }
     if (!newDriverID || !newDriverName) { setError('Please fetch a valid new driver'); return; }
+    if (driverError) { setError('Please resolve the driver error before submitting'); return; }
     setSubmitting(true);
     try {
       const res = await createReplacementRequest({
@@ -111,15 +119,15 @@ export default function ReplacementPage() {
         keyField="ReplacementID"
         emptyMessage="No replacement requests yet."
         columns={[
-          { key: 'ReplacementID', header: 'ID',          className: 'font-mono text-xs' },
+          { key: 'ReplacementID', header: 'ID',          render: r => <span className="font-mono text-xs text-zinc-500">{shortID(String(r.ReplacementID))}</span> },
           { key: 'PlateNumber',   header: 'Plate No.',   className: 'font-medium' },
           { key: 'OldDriverID',   header: 'Old Driver ID' },
           { key: 'OldDriverName', header: 'Old Driver' },
           { key: 'NewDriverID',   header: 'New Driver ID' },
           { key: 'NewDriverName', header: 'New Driver' },
-          { key: 'RequestedAt',   header: 'Requested At' },
-          { key: 'Status',        header: 'Status', render: r => <Badge status={String(r.Status)} /> },
-          { key: 'ReviewedAt',    header: 'Reviewed At' },
+          { key: 'RequestedAt',   header: 'Requested',   render: r => <span className="text-zinc-500 text-xs">{formatDate(String(r.RequestedAt))}</span> },
+          { key: 'Status',        header: 'Status',      render: r => <Badge status={String(r.Status)} /> },
+          { key: 'ReviewedAt',    header: 'Reviewed',    render: r => <span className="text-zinc-500 text-xs">{formatDate(String(r.ReviewedAt))}</span> },
         ]}
       />
 

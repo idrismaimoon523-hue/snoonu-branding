@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
-import { getDriver, createRequest } from '@/lib/api';
+import { getDriver, createRequest, getBrandedVehicles } from '@/lib/api';
 import { CAR_BRANDS, CAR_MODELS, FLEET_TYPES, REQUEST_TYPES, MIN_CAR_YEAR, CURRENT_YEAR } from '@/lib/constants';
-import type { AuthUser, Driver } from '@/types';
+import type { AuthUser, Driver, BrandedVehicle } from '@/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -35,6 +35,8 @@ export default function RequestPage() {
   const [submitting, setSubmitting]         = useState(false);
   const [successMsg, setSuccessMsg]         = useState('');
   const [apiError, setApiError]             = useState('');
+  const [plateCheckError, setPlateCheckError] = useState('');
+  const [checkingPlate, setCheckingPlate]   = useState(false);
 
   useEffect(() => {
     const u = getUser();
@@ -50,10 +52,42 @@ export default function RequestPage() {
         setDriverError(res.error || 'Driver not found');
         setForm(f => ({ ...f, driverName: '', driverPhone: '' }));
       } else {
-        setForm(f => ({ ...f, driverName: res.driver!.driverName, driverPhone: res.driver!.driverPhone }));
+        // Restrict to own company drivers
+        if (res.driver.companyCode !== user?.companyCode) {
+          setDriverError('This driver does not belong to your company.');
+          setForm(f => ({ ...f, driverName: '', driverPhone: '' }));
+        } else {
+          setForm(f => ({ ...f, driverName: res.driver!.driverName, driverPhone: res.driver!.driverPhone }));
+        }
       }
     } catch { setDriverError('Error fetching driver'); }
     finally { setFetchingDriver(false); }
+  }
+
+  async function checkPlateDuplicate() {
+    if (!form.plateNumber.trim() || !form.requestType) return;
+    // Only check duplicates for "New Branding Request"
+    if (form.requestType !== 'New Branding Request') {
+      setPlateCheckError('');
+      return;
+    }
+    setCheckingPlate(true);
+    setPlateCheckError('');
+    try {
+      const res = await getBrandedVehicles({ role: 'Admin' }) as { success: boolean; vehicles?: BrandedVehicle[] };
+      if (res.success && res.vehicles) {
+        const match = res.vehicles.find(
+          v => String(v.PlateNumber).trim().toLowerCase() === form.plateNumber.trim().toLowerCase()
+        );
+        if (match) {
+          // 3PL sees full details
+          setPlateCheckError(
+            `Duplicate: This plate is already branded — Driver: ${match.DriverName}, Company: ${match.CompanyName}, Vehicle: ${match.CarBrand} ${match.CarModel}`
+          );
+        }
+      }
+    } catch { /* silently ignore plate check errors */ }
+    finally { setCheckingPlate(false); }
   }
 
   function validate(): boolean {
@@ -75,6 +109,7 @@ export default function RequestPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSuccessMsg(''); setApiError('');
+    if (plateCheckError) return; // block if duplicate detected
     if (!validate()) return;
     setSubmitting(true);
     try {
@@ -84,6 +119,7 @@ export default function RequestPage() {
         setSuccessMsg(`Request submitted successfully! Request ID: ${res.requestID}`);
         setForm({ ...EMPTY, companyCode: user?.companyCode || '', companyName: user?.companyName || '' });
         setErrors({});
+        setPlateCheckError('');
       }
     } catch { setApiError('Network error. Please try again.'); }
     finally { setSubmitting(false); }
@@ -124,7 +160,10 @@ export default function RequestPage() {
               options={REQUEST_TYPES}
               placeholder="Select request type…"
               value={form.requestType}
-              onChange={e => setForm(f => ({ ...f, requestType: e.target.value }))}
+              onChange={e => {
+                setForm(f => ({ ...f, requestType: e.target.value }));
+                setPlateCheckError('');
+              }}
               required
               error={errors.requestType}
             />
@@ -170,11 +209,23 @@ export default function RequestPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select label="Fleet Type" options={FLEET_TYPES} placeholder="Select…" value={form.fleetType}
                 onChange={e => setForm(f => ({ ...f, fleetType: e.target.value }))} required error={errors.fleetType} />
-              <Input label="Plate Number"
-                placeholder={form.fleetType === 'Bike' ? '7/1298' : '11/11111'}
-                value={form.plateNumber}
-                onChange={e => setForm(f => ({ ...f, plateNumber: e.target.value }))}
-                required hint='Must contain "/" e.g. 11/11111' error={errors.plateNumber} />
+              <div>
+                <Input label="Plate Number"
+                  placeholder={form.fleetType === 'Bike' ? '7/1298' : '11/11111'}
+                  value={form.plateNumber}
+                  onChange={e => { setForm(f => ({ ...f, plateNumber: e.target.value })); setPlateCheckError(''); }}
+                  onBlur={checkPlateDuplicate}
+                  required hint='Must contain "/" e.g. 11/11111' error={errors.plateNumber} />
+                {checkingPlate && <p className="text-xs text-zinc-400 mt-1">Checking plate…</p>}
+                {plateCheckError && (
+                  <div className="mt-1.5 flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                    <svg className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0V5zm.75 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                    <p className="text-xs text-red-700">{plateCheckError}</p>
+                  </div>
+                )}
+              </div>
               <Select label="Car Brand" options={CAR_BRANDS} placeholder="Select brand…" value={form.carBrand}
                 onChange={e => setForm(f => ({ ...f, carBrand: e.target.value }))} required error={errors.carBrand} />
               <Select label="Car Model" options={CAR_MODELS} placeholder="Select model…" value={form.carModel}
@@ -185,7 +236,7 @@ export default function RequestPage() {
           </div>
 
           <div className="flex justify-end pt-2 border-t border-zinc-100">
-            <Button type="submit" size="lg" loading={submitting}>
+            <Button type="submit" size="lg" loading={submitting} disabled={!!plateCheckError}>
               Submit Request
             </Button>
           </div>

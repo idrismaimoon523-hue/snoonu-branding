@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { getUser } from '@/lib/auth';
 import { getScheduleJobs, getAvailableSlots, assignSupplierSlot, rescheduleJob, rejectJob, verifyUpload } from '@/lib/api';
 import type { ScheduleJob, SupplierSlot } from '@/types';
+import { formatDate, formatTime, shortID } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import FleetBadge from '@/components/ui/FleetBadge';
 import Modal from '@/components/ui/Modal';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -24,6 +26,7 @@ export default function AdminSchedulePage() {
   const [slots, setSlots]           = useState<SupplierSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg]               = useState('');
   const [verifyNotes, setVerifyNotes] = useState('');
@@ -43,6 +46,7 @@ export default function AdminSchedulePage() {
 
   async function openAssign(job: ScheduleJob, mode: 'assign' | 'reschedule') {
     setSelected(job); setAction(mode); setSelectedSlot(''); setMsg('');
+    setExpandedSupplier(null);
     setSlotsLoading(true);
     const res = await getAvailableSlots(undefined, job.JobType) as { success: boolean; slots?: SupplierSlot[] };
     setSlots(res.slots ?? []);
@@ -69,6 +73,15 @@ export default function AdminSchedulePage() {
     setSubmitting(false);
   }
 
+  // Group slots by supplier name for the accordion UI
+  const supplierGroups = slots.reduce<Record<string, SupplierSlot[]>>((acc, slot) => {
+    const name = slot.SupplierName;
+    if (!acc[name]) acc[name] = [];
+    acc[name].push(slot);
+    return acc;
+  }, {});
+  const supplierNames = Object.keys(supplierGroups);
+
   const displayed = filterStatus ? jobs.filter(j => j.Status === filterStatus) : jobs;
 
   if (loading) return <Spinner />;
@@ -94,18 +107,18 @@ export default function AdminSchedulePage() {
         keyField="JobID"
         emptyMessage="No jobs found."
         columns={[
-          { key: 'JobID',       header: 'Job ID',    className: 'font-mono text-xs text-zinc-500' },
+          { key: 'JobID',       header: 'Job ID',    render: r => <span className="font-mono text-xs text-zinc-500">{shortID(String(r.JobID))}</span> },
           { key: 'JobType',     header: 'Type',      render: r => <Badge status={String(r.JobType)} /> },
           { key: 'PlateNumber', header: 'Plate No.', className: 'font-semibold' },
           { key: 'CompanyName', header: 'Company' },
           { key: 'DriverName',  header: 'Driver' },
-          { key: 'FleetType',   header: 'Fleet',     className: 'text-zinc-500' },
+          { key: 'FleetType',   header: 'Fleet',     render: r => <FleetBadge fleet={String(r.FleetType)} /> },
           { key: 'CarBrand',    header: 'Brand',     className: 'text-zinc-500' },
           { key: 'CarModel',    header: 'Model',     className: 'text-zinc-500' },
           { key: 'Status',      header: 'Status',    render: r => <Badge status={String(r.Status)} /> },
           { key: 'SupplierName',header: 'Supplier',  className: 'text-zinc-500' },
-          { key: 'AppointmentDate', header: 'Date',  className: 'text-zinc-500' },
-          { key: 'AppointmentTime', header: 'Time',  className: 'text-zinc-500' },
+          { key: 'AppointmentDate', header: 'Date',  render: r => <span className="text-zinc-500 text-xs">{formatDate(String(r.AppointmentDate))}</span> },
+          { key: 'AppointmentTime', header: 'Time',  render: r => <span className="text-zinc-500 text-xs">{formatTime(String(r.AppointmentTime))}</span> },
           {
             key: 'actions',
             header: 'Actions',
@@ -136,7 +149,7 @@ export default function AdminSchedulePage() {
         ]}
       />
 
-      {/* Assign / Reschedule Modal */}
+      {/* Assign / Reschedule Modal — Supplier Accordion Design */}
       <Modal
         open={action === 'assign' || action === 'reschedule'}
         onClose={() => setAction(null)}
@@ -146,55 +159,122 @@ export default function AdminSchedulePage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setAction(null)}>Cancel</Button>
-            <Button loading={submitting} onClick={handleAssign}>Confirm Assignment</Button>
+            <Button loading={submitting} onClick={handleAssign} disabled={!selectedSlot}>
+              Confirm Assignment
+            </Button>
           </>
         }
       >
         {selected && (
           <div className="space-y-4">
+            {/* Job summary */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 border border-zinc-200 text-sm">
               <Badge status={selected.Status} />
               <span className="text-zinc-600">{selected.DriverName} — {selected.DriverPhone}</span>
             </div>
             {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-            {slotsLoading ? <Spinner message="Loading available slots…" /> : (
-              slots.length === 0 ? (
-                <div className="text-center py-8 text-zinc-400">
-                  <p className="text-sm font-medium">No available slots for {selected.JobType}</p>
-                  <p className="text-xs mt-1">Create slots in Supplier Slot Management</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {slots.map(s => (
-                    <label
-                      key={s.SlotID}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-100 ${
-                        selectedSlot === s.SlotID
-                          ? 'border-brand bg-brand-light'
-                          : 'border-zinc-200 hover:border-zinc-300 bg-white'
+            {slotsLoading ? (
+              <Spinner message="Loading available slots…" />
+            ) : supplierNames.length === 0 ? (
+              <div className="text-center py-8 text-zinc-400">
+                <p className="text-sm font-medium">No available slots for {selected.JobType}</p>
+                <p className="text-xs mt-1">Create slots in Supplier Slot Management</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Select a Supplier</p>
+
+                {supplierNames.map(supplierName => {
+                  const supplierSlots = supplierGroups[supplierName];
+                  const isExpanded = expandedSupplier === supplierName;
+                  // Check if any slot in this supplier is selected
+                  const hasSelection = supplierSlots.some(s => s.SlotID === selectedSlot);
+
+                  return (
+                    <div
+                      key={supplierName}
+                      className={`rounded-xl border-2 overflow-hidden transition-all duration-150 ${
+                        hasSelection ? 'border-brand' : 'border-zinc-200'
                       }`}
                     >
-                      <input
-                        type="radio" name="slot" value={s.SlotID}
-                        checked={selectedSlot === s.SlotID}
-                        onChange={() => setSelectedSlot(s.SlotID)}
-                        className="accent-brand"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-zinc-800">{s.SupplierName}</p>
-                        <p className="text-xs text-zinc-500">{s.Date} at {s.Time} · {s.Area}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={`text-sm font-bold ${Number(s.availableCapacity) === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                          {s.availableCapacity} left
-                        </p>
-                        <p className="text-xs text-zinc-400">of {s.MaxCapacity}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )
+                      {/* Supplier header row */}
+                      <button
+                        type="button"
+                        className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                          isExpanded ? 'bg-zinc-50' : 'bg-white hover:bg-zinc-50'
+                        }`}
+                        onClick={() => setExpandedSupplier(isExpanded ? null : supplierName)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-zinc-800">{supplierName}</span>
+                          <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
+                            {supplierSlots.length} slot{supplierSlots.length !== 1 ? 's' : ''}
+                          </span>
+                          {hasSelection && (
+                            <span className="text-xs text-brand font-medium">Selected</span>
+                          )}
+                        </div>
+                        {/* Chevron */}
+                        <svg
+                          className={`h-4 w-4 text-zinc-400 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Slot list (expanded) */}
+                      {isExpanded && (
+                        <div className="border-t border-zinc-100 divide-y divide-zinc-100">
+                          {supplierSlots.map(slot => {
+                            const avail = Number(slot.availableCapacity ?? 0);
+                            const isFull = avail === 0;
+                            const isSelected = selectedSlot === slot.SlotID;
+                            return (
+                              <label
+                                key={slot.SlotID}
+                                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                                  isFull
+                                    ? 'opacity-40 cursor-not-allowed bg-white'
+                                    : isSelected
+                                    ? 'bg-brand/5'
+                                    : 'bg-white hover:bg-zinc-50'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="slot"
+                                  value={slot.SlotID}
+                                  checked={isSelected}
+                                  disabled={isFull}
+                                  onChange={() => setSelectedSlot(slot.SlotID)}
+                                  className="accent-brand"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-zinc-700">
+                                    <span className="font-medium">{formatDate(slot.Date)}</span>
+                                    <span className="text-zinc-400 mx-1">·</span>
+                                    {formatTime(slot.Time)}
+                                    <span className="text-zinc-400 mx-1">·</span>
+                                    {slot.Area}
+                                  </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className={`text-sm font-bold ${isFull ? 'text-red-500' : 'text-emerald-600'}`}>
+                                    {avail} left
+                                  </p>
+                                  <p className="text-xs text-zinc-400">of {slot.MaxCapacity}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

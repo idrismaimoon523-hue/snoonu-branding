@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getUser } from '@/lib/auth';
 import { getReplacementRequests, reviewReplacement } from '@/lib/api';
 import type { ReplacementRequest } from '@/types';
+import { formatDate, shortID } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -51,14 +52,14 @@ export default function AdminDriverReplacementPage() {
         keyField="ReplacementID"
         emptyMessage="No replacement requests."
         columns={[
-          { key: 'ReplacementID', header: 'ID',            className: 'font-mono text-xs' },
+          { key: 'ReplacementID', header: 'ID',            render: r => <span className="font-mono text-xs text-zinc-500">{shortID(String(r.ReplacementID))}</span> },
           { key: 'PlateNumber',   header: 'Plate No.',     className: 'font-medium' },
           { key: 'CompanyCode',   header: 'Company' },
           { key: 'OldDriverID',   header: 'Old Driver ID' },
           { key: 'OldDriverName', header: 'Old Driver' },
           { key: 'NewDriverID',   header: 'New Driver ID' },
           { key: 'NewDriverName', header: 'New Driver' },
-          { key: 'RequestedAt',   header: 'Requested' },
+          { key: 'RequestedAt',   header: 'Requested',     render: r => <span className="text-zinc-500 text-xs">{formatDate(String(r.RequestedAt))}</span> },
           { key: 'Status',        header: 'Status',        render: r => <Badge status={String(r.Status)} /> },
           {
             key: 'review',
@@ -95,6 +96,7 @@ export default function AdminDriverReplacementPage() {
             <div className="bg-zinc-50 rounded-lg border border-zinc-200 p-4 space-y-1">
               <p><strong>Plate Number:</strong> {selected.PlateNumber}</p>
               <p><strong>Company:</strong> {selected.CompanyCode}</p>
+              <p><strong>Requested:</strong> {formatDate(selected.RequestedAt)}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-red-50 rounded-lg p-3">

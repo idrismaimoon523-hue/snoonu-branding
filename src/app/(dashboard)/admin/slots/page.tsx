@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getSupplierSlots, createSupplierSlot, updateSupplierSlot, deleteSupplierSlot } from '@/lib/api';
 import type { SupplierSlot } from '@/types';
+import { formatDate, formatTime, shortID } from '@/lib/utils';
 import { JOB_TYPES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -107,11 +108,11 @@ export default function AdminSlotsPage() {
         keyField="SlotID"
         emptyMessage="No slots created yet."
         columns={[
-          { key: 'SlotID',          header: 'Slot ID',      className: 'font-mono text-xs' },
+          { key: 'SlotID',          header: 'Slot ID',  render: r => <span className="font-mono text-xs text-zinc-500">{shortID(String(r.SlotID))}</span> },
           { key: 'SupplierName',    header: 'Supplier' },
           { key: 'Area',            header: 'Area' },
-          { key: 'Date',            header: 'Date' },
-          { key: 'Time',            header: 'Time' },
+          { key: 'Date',            header: 'Date',     render: r => <span className="text-zinc-600 text-xs">{formatDate(String(r.Date))}</span> },
+          { key: 'Time',            header: 'Time',     render: r => <span className="text-zinc-600 text-xs">{formatTime(String(r.Time))}</span> },
           { key: 'JobType',         header: 'Job Type' },
           { key: 'MaxCapacity',     header: 'Capacity' },
           { key: 'CurrentBookings', header: 'Booked' },
