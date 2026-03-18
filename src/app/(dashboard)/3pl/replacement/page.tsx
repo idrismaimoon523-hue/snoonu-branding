@@ -63,8 +63,8 @@ export default function ReplacementPage() {
     finally { setFetchingDriver(false); }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     setSuccessMsg(''); setError('');
     if (!plateNumber) { setError('Please select a vehicle'); return; }
     if (!newDriverID || !newDriverName) { setError('Please fetch a valid new driver'); return; }
@@ -132,7 +132,7 @@ export default function ReplacementPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button loading={submitting} onClick={handleSubmit as () => void}>Submit</Button>
+            <Button loading={submitting} onClick={() => handleSubmit()}>Submit</Button>
           </>
         }
       >
