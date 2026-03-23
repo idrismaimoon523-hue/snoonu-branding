@@ -314,15 +314,19 @@ function createRequest(data) {
   if (jobType === 'Branding') {
     const jobsSheet = ss.getSheetByName(SN.JOBS);
     const jobs = sheetToObjects(jobsSheet);
-    const hasActiveBranding = jobs.some(j => 
-      j.PlateNumber === data.plateNumber && 
-      (j.JobType === 'Branding' || j.JobType === 'Re-branding') && 
-      !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status)
-    );
+    const hasActiveBranding = jobs.some(j => {
+      const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
+      return normalizedJPlate === data.plateNumber && 
+             (j.JobType === 'Branding' || j.JobType === 'Re-branding') && 
+             !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status);
+    });
 
     const brandedSheet = ss.getSheetByName(SN.BRANDED);
     const brandedVehicles = sheetToObjects(brandedSheet);
-    const isCurrentlyBranded = brandedVehicles.some(b => b.PlateNumber === data.plateNumber);
+    const isCurrentlyBranded = brandedVehicles.some(b => {
+      const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
+      return normalizedBPlate === data.plateNumber;
+    });
 
     if (hasActiveBranding || isCurrentlyBranded) {
       return { success: false, error: 'Duplicate Request: This vehicle plate number is already branded or currently has a pending request.' };

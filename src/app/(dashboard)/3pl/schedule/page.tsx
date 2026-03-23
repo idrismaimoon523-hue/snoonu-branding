@@ -34,7 +34,7 @@ export default function ThreePLSchedulePage() {
   if (error)   return <p className="text-red-600 px-6 py-4">{error}</p>;
 
   const pendingJobs = jobs.filter(j => j.Status === 'Pending');
-  const scheduledJobs = jobs.filter(j => j.Status !== 'Pending');
+  const scheduledJobs = jobs.filter(j => j.Status !== 'Pending' && j.Status !== 'Completed');
   const displayedJobs = activeTab === 'pending' ? pendingJobs : scheduledJobs;
 
   return (
