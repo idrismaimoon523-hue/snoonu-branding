@@ -17,6 +17,7 @@ const NAV: Record<string, { href: string; label: string; icon: React.ReactNode }
   ],
   Admin: [
     { href: '/admin/schedule',           label: 'Schedule',           icon: <IconCalendar /> },
+    { href: '/admin/verification',       label: 'Verification',       icon: <IconClipboard /> },
     { href: '/admin/driver-replacement', label: 'Driver Replacement', icon: <IconRefresh /> },
     { href: '/admin/branded',            label: 'Branded Vehicles',   icon: <IconCar /> },
     { href: '/admin/sticker-removed',    label: 'Sticker Removed',    icon: <IconTrash /> },

@@ -1,0 +1,16 @@
+{
+  "name": "Snoonu Branding Portal",
+  "short_name": "Snoonu Branding",
+  "description": "Snoonu Vehicle Branding Management Portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f8a100",
+  "icons": [
+    {
+      "src": "/snoonu_branding_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
