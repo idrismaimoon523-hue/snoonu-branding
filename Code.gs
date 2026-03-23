@@ -311,26 +311,27 @@ function createRequest(data) {
 
   const ss           = SpreadsheetApp.openById(SS_ID);
 
-  if (jobType === 'Branding') {
-    const jobsSheet = ss.getSheetByName(SN.JOBS);
-    const jobs = sheetToObjects(jobsSheet);
-    const hasActiveBranding = jobs.some(j => {
-      const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
-      return normalizedJPlate === data.plateNumber && 
-             (j.JobType === 'Branding' || j.JobType === 'Re-branding') && 
-             !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status);
-    });
+  const jobsSheet = ss.getSheetByName(SN.JOBS);
+  const jobs = sheetToObjects(jobsSheet);
+  const hasActiveJob = jobs.some(j => {
+    const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
+    return normalizedJPlate === data.plateNumber && 
+           !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status);
+  });
 
-    const brandedSheet = ss.getSheetByName(SN.BRANDED);
-    const brandedVehicles = sheetToObjects(brandedSheet);
-    const isCurrentlyBranded = brandedVehicles.some(b => {
-      const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
-      return normalizedBPlate === data.plateNumber;
-    });
+  const brandedSheet = ss.getSheetByName(SN.BRANDED);
+  const brandedVehicles = sheetToObjects(brandedSheet);
+  const isCurrentlyBranded = brandedVehicles.some(b => {
+    const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
+    return normalizedBPlate === data.plateNumber;
+  });
 
-    if (hasActiveBranding || isCurrentlyBranded) {
-      return { success: false, error: 'Duplicate Request: This vehicle plate number is already branded or currently has a pending request.' };
-    }
+  if (hasActiveJob) {
+    return { success: false, error: 'Duplicate Request: This vehicle already has a pending or active request in progress.' };
+  }
+
+  if (jobType === 'Branding' && isCurrentlyBranded) {
+    return { success: false, error: 'Duplicate Request: This vehicle is already branded. Use Sticker Removal or Replacement Request instead.' };
   }
   const requestsSheet = ss.getSheetByName(SN.REQUESTS);
   const jobsSheet    = ss.getSheetByName(SN.JOBS);
