@@ -309,78 +309,95 @@ function createRequest(data) {
 
   const jobType = data.requestType === 'New Branding Request' ? 'Branding' : 'Sticker Removal';
 
-  const ss           = SpreadsheetApp.openById(SS_ID);
-
-  const jobsSheet = ss.getSheetByName(SN.JOBS);
-  const jobs = sheetToObjects(jobsSheet);
-  const hasActiveJob = jobs.some(j => {
-    const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
-    return normalizedJPlate === data.plateNumber && 
-           !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status);
-  });
-
-  const brandedSheet = ss.getSheetByName(SN.BRANDED);
-  const brandedVehicles = sheetToObjects(brandedSheet);
-  const isCurrentlyBranded = brandedVehicles.some(b => {
-    const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
-    return normalizedBPlate === data.plateNumber;
-  });
-
-  if (hasActiveJob) {
-    return { success: false, error: 'Duplicate Request: This vehicle already has a pending or active request in progress.' };
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); // Wait up to 10 seconds
+  } catch (e) {
+    return { success: false, error: 'Server busy, please try again later.' };
   }
 
-  if (jobType === 'Branding' && isCurrentlyBranded) {
-    return { success: false, error: 'Duplicate Request: This vehicle is already branded. Use Sticker Removal or Replacement Request instead.' };
+  try {
+    const requestsSheet = ss.getSheetByName(SN.REQUESTS);
+    const jobsSheet     = ss.getSheetByName(SN.JOBS);
+    const requests      = sheetToObjects(requestsSheet);
+    const jobs          = sheetToObjects(jobsSheet);
+
+    const finalStatuses = ['Completed', 'Rejected', 'Did Not Appear'];
+
+    const hasActiveRequest = requests.some(r => {
+      const normalizedRPlate = String(r.PlateNumber || '').replace(/\s+/g, '');
+      return normalizedRPlate === data.plateNumber && !finalStatuses.includes(r.Status);
+    });
+
+    const hasActiveJob = jobs.some(j => {
+      const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
+      return normalizedJPlate === data.plateNumber && !finalStatuses.includes(j.Status);
+    });
+
+    const brandedSheet      = ss.getSheetByName(SN.BRANDED);
+    const brandedVehicles   = sheetToObjects(brandedSheet);
+    const isCurrentlyBranded = brandedVehicles.some(b => {
+      const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
+      return normalizedBPlate === data.plateNumber;
+    });
+
+    if (hasActiveRequest || hasActiveJob) {
+      return { success: false, error: 'Duplicate Request: This vehicle already has a pending or active request in progress.' };
+    }
+
+    if (jobType === 'Branding' && isCurrentlyBranded) {
+      return { success: false, error: 'Duplicate Request: This vehicle is already branded. Use Sticker Removal or Replacement Request instead.' };
+    }
+
+    const now          = new Date().toISOString();
+    const requestID    = generateID('REQ');
+    const jobID        = generateID('JOB');
+
+    requestsSheet.appendRow([
+      requestID,
+      data.requestType,
+      data.driverID,
+      data.driverName   || '',
+      data.driverPhone  || '',
+      data.companyCode,
+      data.companyName  || '',
+      data.fleetType,
+      data.plateNumber,
+      data.carBrand,
+      data.carModel,
+      data.carYear,
+      'Pending',
+      now,
+    ]);
+
+    jobsSheet.appendRow([
+      jobID,
+      requestID,
+      jobType,
+      data.plateNumber,
+      data.driverID,
+      data.driverName  || '',
+      data.driverPhone || '',
+      data.companyCode,
+      data.companyName || '',
+      data.fleetType,
+      data.carBrand,
+      data.carModel,
+      data.carYear,
+      'Pending',
+      '', // SupplierName
+      '', // Area
+      '', // AppointmentDate
+      '', // AppointmentTime
+      '', // SlotID
+      now,
+      now,
+    ]);
+
+    return { success: true, requestID, jobID, message: 'Request created successfully' };
+  } finally {
+    lock.releaseLock();
   }
-  const requestsSheet = ss.getSheetByName(SN.REQUESTS);
-  const jobsSheet    = ss.getSheetByName(SN.JOBS);
-  const now          = new Date().toISOString();
-  const requestID    = generateID('REQ');
-  const jobID        = generateID('JOB');
-
-  requestsSheet.appendRow([
-    requestID,
-    data.requestType,
-    data.driverID,
-    data.driverName   || '',
-    data.driverPhone  || '',
-    data.companyCode,
-    data.companyName  || '',
-    data.fleetType,
-    data.plateNumber,
-    data.carBrand,
-    data.carModel,
-    data.carYear,
-    'Pending',
-    now,
-  ]);
-
-  jobsSheet.appendRow([
-    jobID,
-    requestID,
-    jobType,
-    data.plateNumber,
-    data.driverID,
-    data.driverName  || '',
-    data.driverPhone || '',
-    data.companyCode,
-    data.companyName || '',
-    data.fleetType,
-    data.carBrand,
-    data.carModel,
-    data.carYear,
-    'Pending',
-    '', // SupplierName
-    '', // Area
-    '', // AppointmentDate
-    '', // AppointmentTime
-    '', // SlotID
-    now,
-    now,
-  ]);
-
-  return { success: true, requestID, jobID, message: 'Request created successfully' };
 }
 
 function getRequests(companyCode, role) {
