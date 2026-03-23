@@ -78,13 +78,14 @@ export default function RequestPage() {
     try {
       const res = await getBrandedVehicles({ role: 'Admin' }) as { success: boolean; vehicles?: BrandedVehicle[] };
       if (res.success && res.vehicles) {
+        const normalizedInput = form.plateNumber.replace(/\s+/g, '').toLowerCase();
         const match = res.vehicles.find(
-          v => String(v.PlateNumber).trim().toLowerCase() === form.plateNumber.trim().toLowerCase()
+          v => String(v.PlateNumber).replace(/\s+/g, '').toLowerCase() === normalizedInput
         );
         if (match) {
-          // 3PL sees full details
+          // 3PL sees the generic error as requested
           setPlateCheckError(
-            `Duplicate: This plate is already branded — Driver: ${match.DriverName}, Company: ${match.CompanyName}, Vehicle: ${match.CarBrand} ${match.CarModel}`
+            `Duplicate Request: This vehicle plate number is already branded or currently has a pending request.`
           );
         }
       }
@@ -98,8 +99,16 @@ export default function RequestPage() {
     if (!form.driverID) e.driverID = 'Required';
     if (!form.driverName) e.driverName = 'Enter a valid Driver ID first';
     if (!form.fleetType) e.fleetType = 'Required';
-    if (!form.plateNumber) e.plateNumber = 'Required';
-    else if (!form.plateNumber.includes('/')) e.plateNumber = 'Must contain "/"';
+    if (!form.plateNumber) {
+      e.plateNumber = 'Required';
+    } else {
+      const normalizedPlate = form.plateNumber.replace(/\s+/g, '');
+      if (form.fleetType === 'Car' && !/^\d{2}\/\d{5}$/.test(normalizedPlate)) {
+        e.plateNumber = 'Car format: 2 digits, slash, 5 digits (e.g., 22/12345)';
+      } else if (form.fleetType === 'Bike' && !/^\d{1}\/\d{4}$/.test(normalizedPlate)) {
+        e.plateNumber = 'Bike format: 1 digit, slash, 4 digits (e.g., 2/1234)';
+      }
+    }
     if (!form.carBrand) e.carBrand = 'Required';
     if (!form.carModel) e.carModel = 'Required';
     if (!form.carYear) e.carYear = 'Required';
@@ -115,7 +124,8 @@ export default function RequestPage() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const res = await createRequest({ ...form }) as { success: boolean; requestID?: string; jobID?: string; error?: string };
+      const payload = { ...form, plateNumber: form.plateNumber.replace(/\s+/g, '') };
+      const res = await createRequest(payload) as { success: boolean; requestID?: string; jobID?: string; error?: string };
       if (!res.success) { setApiError(res.error || 'Submission failed'); }
       else {
         setSuccessMsg(`Request submitted successfully! Request ID: ${res.requestID}`);

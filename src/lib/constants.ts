@@ -1,32 +1,17 @@
 export const CAR_BRANDS = [
-  'Bajaj', 'Changan', 'Chery', 'Chevrolet', 'Chrysler',
-  'GAC', 'GEELY', 'Hero', 'Honda', 'Hyundai', 'Kia',
-  'MG', 'Mitsubishi', 'Nissan', 'Renault', 'Suzuki',
-  'SYM', 'Toyota', 'TVS', 'VOLKSWAGEN', 'YAMAHA',
-  'Other Brand', 'Dayun',
+  'Bajaj', 'Changan', 'Chery', 'Chevrolet', 'Dayun', 'GAC', 'GEELY', 'Hero', 
+  'Honda', 'Hyundai', 'Kia', 'MG', 'Mitsubishi', 'Nissan', 'Renault', 
+  'Suzuki', 'SYM', 'Toyota', 'TVS', 'VOLKSWAGEN', 'Other'
 ];
 
 export const CAR_MODELS = [
-  'Boxer', 'Pulsar 150', 'Discover', 'Platina',
-  'CS35 Plus', 'CS75 Plus', 'CS95', 'UNI-K',
-  'Tiggo 8 Pro', 'Tiggo 7 Pro', 'Arrizo 8', 'Tiggo 4 Pro',
-  'Tahoe', 'Silverado', 'Captiva', 'Groove',
-  '300', 'Pacifica', '300C', '300S',
-  'Emkoo', 'GS3 Emzoom', 'GS8', 'Empow',
-  'Monjaro', 'Coolray', 'Tugella', 'Emgrand',
-  'Hunk 160R', 'Thriller', 'Ignitor', 'Dawn',
-  'Civic', 'Accord', 'CR-V', 'Pilot',
-  'Tucson', 'Santa Fe', 'Elantra', 'Palisade',
-  'Sportage', 'Sorento', 'Telluride', 'K5',
-  'MG RX5', 'MG HS', 'MG 5', 'MG ZS',
-  'Outlander', 'Montero Sport', 'Pajero', 'ASX',
-  'Patrol', 'X-Trail', 'Pathfinder', 'Altima',
-  'Duster', 'Koleos', 'Arkana', 'Megane',
-  'Jimny', 'Vitara', 'Swift', 'Dzire',
-  'Joymax Z+', 'Jet X', 'Fiddle', 'Crox',
-  'Land Cruiser', 'Prado', 'Camry', 'Sunny', 'Corolla',
-  'HLX 150', 'Apache RTR', 'Star HLX', 'Victor',
-  'YZF-R1', 'MT-09', 'TMAX', 'NMAX', '150 CC',
+  '3', '5', 'Accent', 'Alsvin', 'Alto', 'Apache', 'Arizzo 4', 'Arizzo 5', 
+  'Arrizo 6', 'Attrage', 'Aveo', 'Boxer', 'Camry', 'Cargo', 'Celerio', 'Ciaz', 
+  'City', 'Corolla', 'Dzire', 'Emgrand', 'Ertica', 'Gixxer 150', 'GS4', 'GX2', 
+  'Honda', 'Hunk', 'i10', 'JETTA', 'Kiger', 'MG 5', 'Micra', 'Mirage', 
+  'Pegas', 'Picanto', 'Pulsar', 'Raize', 'Sentra', 'Sonata', 'S-Presso', 
+  'Sunny', 'Symbol', 'Tiggo 2 pro', 'Tiggo 3 pro', 'Unicorn', 'XS150', 
+  'Yaris', 'Other'
 ];
 
 export const FLEET_TYPES = ['Car', 'Bike'];

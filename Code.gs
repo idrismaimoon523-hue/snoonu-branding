@@ -291,8 +291,12 @@ function createRequest(data) {
     if (!data[f]) return { success: false, error: 'Missing field: ' + f };
   }
 
-  if (!String(data.plateNumber).includes('/')) {
-    return { success: false, error: 'Plate number must contain "/"' };
+  data.plateNumber = String(data.plateNumber).replace(/\s+/g, '');
+  
+  if (data.fleetType === 'Car' && !/^\d{2}\/\d{5}$/.test(data.plateNumber)) {
+    return { success: false, error: 'Vehicle Plate Number format invalid for Car' };
+  } else if (data.fleetType === 'Bike' && !/^\d{1}\/\d{4}$/.test(data.plateNumber)) {
+    return { success: false, error: 'Vehicle Plate Number format invalid for Bike' };
   }
   if (parseInt(data.carYear) < 2021) {
     return { success: false, error: 'Car year must be 2021 or above' };
@@ -306,6 +310,24 @@ function createRequest(data) {
   const jobType = data.requestType === 'New Branding Request' ? 'Branding' : 'Sticker Removal';
 
   const ss           = SpreadsheetApp.openById(SS_ID);
+
+  if (jobType === 'Branding') {
+    const jobsSheet = ss.getSheetByName(SN.JOBS);
+    const jobs = sheetToObjects(jobsSheet);
+    const hasActiveBranding = jobs.some(j => 
+      j.PlateNumber === data.plateNumber && 
+      (j.JobType === 'Branding' || j.JobType === 'Re-branding') && 
+      !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status)
+    );
+
+    const brandedSheet = ss.getSheetByName(SN.BRANDED);
+    const brandedVehicles = sheetToObjects(brandedSheet);
+    const isCurrentlyBranded = brandedVehicles.some(b => b.PlateNumber === data.plateNumber);
+
+    if (hasActiveBranding || isCurrentlyBranded) {
+      return { success: false, error: 'Duplicate Request: This vehicle plate number is already branded or currently has a pending request.' };
+    }
+  }
   const requestsSheet = ss.getSheetByName(SN.REQUESTS);
   const jobsSheet    = ss.getSheetByName(SN.JOBS);
   const now          = new Date().toISOString();
@@ -388,8 +410,9 @@ function getScheduleJobs(filters) {
     jobs = jobs.filter(j => j.JobType === filters.jobType);
   }
   if (filters.plateNumber) {
+    const q = String(filters.plateNumber).replace(/\s+/g, '').toLowerCase();
     jobs = jobs.filter(j =>
-      String(j.PlateNumber).toLowerCase().includes(String(filters.plateNumber).toLowerCase())
+      String(j.PlateNumber).replace(/\s+/g, '').toLowerCase().includes(q)
     );
   }
 
@@ -742,6 +765,13 @@ function verifyUpload(data) {
       today, jobID, job.SupplierName,
     ]);
 
+    // Remove from BrandedVehicles
+    const branded = sheetToObjects(brandedSheet);
+    const existIdx = branded.findIndex(b => b.PlateNumber === job.PlateNumber);
+    if (existIdx !== -1) {
+      brandedSheet.deleteRow(existIdx + 2);
+    }
+
     // Auto-create Re-branding job
     const rebrandJobID = createRebrandingJob(job);
     return {
@@ -918,8 +948,8 @@ function getBrandedVehicles(filters) {
     );
   }
   if (filters.plateNumber) {
-    const q = String(filters.plateNumber).toLowerCase();
-    vehicles = vehicles.filter(v => String(v.PlateNumber).toLowerCase().includes(q));
+    const q = String(filters.plateNumber).replace(/\s+/g, '').toLowerCase();
+    vehicles = vehicles.filter(v => String(v.PlateNumber).replace(/\s+/g, '').toLowerCase().includes(q));
   }
   if (filters.driverID) {
     const q = String(filters.driverID).toLowerCase();
@@ -959,9 +989,10 @@ function createReplacementRequest(data) {
   }
 
   // Verify the vehicle belongs to this company in BrandedVehicles
+  const normalizedPlate = String(plateNumber).replace(/\s+/g, '');
   const branded = sheetToObjects(getSheet(SN.BRANDED));
   const vehicle = branded.find(v =>
-    v.PlateNumber === plateNumber && String(v.CompanyCode) === String(companyCode)
+    String(v.PlateNumber).replace(/\s+/g, '') === normalizedPlate && String(v.CompanyCode) === String(companyCode)
   );
   if (!vehicle) {
     return { success: false, error: 'Vehicle not found in branded vehicles for this company' };
