@@ -309,54 +309,65 @@ function createRequest(data) {
 
   const jobType = data.requestType === 'New Branding Request' ? 'Branding' : 'Sticker Removal';
 
+  const VERSION = "2026-03-24-v5"; // Version tracking
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000); // Wait up to 10 seconds
+    lock.waitLock(20000); // Wait up to 20 seconds
   } catch (e) {
-    return { success: false, error: 'Server busy, please try again later.' };
+    return { success: false, error: 'Server busy, please try again later.', version: VERSION };
   }
 
   try {
     const requestsSheet = ss.getSheetByName(SN.REQUESTS);
     const jobsSheet     = ss.getSheetByName(SN.JOBS);
-    const requests      = sheetToObjects(requestsSheet);
-    const jobs          = sheetToObjects(jobsSheet);
+    const brandedSheet  = ss.getSheetByName(SN.BRANDED);
 
     const finalStatuses = ['completed', 'rejected', 'did not appear'];
+    const normalizedTarget = String(data.plateNumber || '').replace(/\s+/g, '').toLowerCase();
 
-    // Helper to find a value in an object regardless of space/casing in keys
-    const getVal = (obj, key) => {
-      const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
-      for (const k in obj) {
-        if (k.toLowerCase().replace(/\s+/g, '') === normalizedKey) return obj[k];
-      }
-      return undefined;
-    };
-
-    const isDuplicate = (list, plate) => {
-      return list.some(item => {
-        const itemPlate  = String(getVal(item, 'PlateNumber') || '').replace(/\s+/g, '');
-        const itemStatus = String(getVal(item, 'Status') || '').toLowerCase().trim();
-        return itemPlate === plate && !finalStatuses.includes(itemStatus);
+    // Direct check function to bypass sheetToObjects for critical duplication check
+    const checkDirect = (sheet, plateColIdx, statusColIdx) => {
+      const vals = sheet.getDataRange().getValues();
+      if (vals.length <= 1) return false;
+      const data = vals.slice(1);
+      return data.some(row => {
+        const p = String(row[plateColIdx] || '').replace(/\s+/g, '').toLowerCase();
+        const s = String(row[statusColIdx] || '').replace(/\s+/g, '').toLowerCase();
+        return p === plate && !finalStatuses.includes(s);
       });
     };
 
-    const hasActiveRequest = isDuplicate(requests, data.plateNumber);
-    const hasActiveJob     = isDuplicate(jobs, data.plateNumber);
+    // Find columns dynamically in case they moved
+    const getColIndex = (sheet, name) => {
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const normName = name.toLowerCase().replace(/\s+/g, '');
+      for (let i = 0; i < headers.length; i++) {
+        if (String(headers[i]).toLowerCase().replace(/\s+/g, '') === normName) return i;
+      }
+      return -1;
+    };
 
-    const brandedSheet      = ss.getSheetByName(SN.BRANDED);
-    const brandedVehicles   = sheetToObjects(brandedSheet);
-    const isCurrentlyBranded = brandedVehicles.some(b => {
-      const bPlate = String(getVal(b, 'PlateNumber') || '').replace(/\s+/g, '');
-      return bPlate === data.plateNumber;
-    });
+    const reqPlateIdx  = getColIndex(requestsSheet, 'PlateNumber');
+    const reqStatusIdx = getColIndex(requestsSheet, 'Status');
+    const jobPlateIdx  = getColIndex(jobsSheet, 'PlateNumber');
+    const jobStatusIdx = getColIndex(jobsSheet, 'Status');
+    const brandPlateIdx = getColIndex(brandedSheet, 'PlateNumber');
+
+    const hasActiveRequest = checkDirect(requestsSheet, reqPlateIdx, reqStatusIdx, normalizedTarget);
+    const hasActiveJob     = checkDirect(jobsSheet, jobPlateIdx, jobStatusIdx, normalizedTarget);
+
+    const isCurrentlyBranded = (() => {
+      const vals = brandedSheet.getDataRange().getValues();
+      if (vals.length <= 1) return false;
+      return vals.slice(1).some(row => String(row[brandPlateIdx] || '').replace(/\s+/g, '').toLowerCase() === normalizedTarget);
+    })();
 
     if (hasActiveRequest || hasActiveJob) {
-      return { success: false, error: 'Duplicate Request: This vehicle already has a pending or active request in progress.' };
+      return { success: false, error: 'Duplicate Request: This vehicle already has an active or pending request (System V5).', version: VERSION };
     }
 
     if (jobType === 'Branding' && isCurrentlyBranded) {
-      return { success: false, error: 'Duplicate Request: This vehicle is already branded. Use Sticker Removal or Replacement Request instead.' };
+      return { success: false, error: 'Duplicate Request: This vehicle is already branded (System V5).', version: VERSION };
     }
 
     const now          = new Date().toISOString();
@@ -404,7 +415,7 @@ function createRequest(data) {
       now,
     ]);
 
-    return { success: true, requestID, jobID, message: 'Request created successfully' };
+    return { success: true, requestID, jobID, message: 'Request created successfully', version: VERSION };
   } finally {
     lock.releaseLock();
   }
