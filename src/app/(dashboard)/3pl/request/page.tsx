@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
-import { getDriver, createRequest, getBrandedVehicles } from '@/lib/api';
+import { getDriver, createRequest, getBrandedVehicles, call } from '@/lib/api';
 import { CAR_BRANDS, CAR_MODELS, FLEET_TYPES, REQUEST_TYPES, MIN_CAR_YEAR, CURRENT_YEAR } from '@/lib/constants';
 import type { AuthUser, Driver, BrandedVehicle } from '@/types';
 import Button from '@/components/ui/Button';
@@ -68,28 +68,30 @@ export default function RequestPage() {
 
   async function checkPlateDuplicate() {
     if (!form.plateNumber.trim() || !form.requestType) return;
-    // Only check duplicates for "New Branding Request"
-    if (form.requestType !== 'New Branding Request') {
-      setPlateCheckError('');
-      return;
-    }
+
     setCheckingPlate(true);
     setPlateCheckError('');
     try {
-      const res = await getBrandedVehicles({ role: 'Admin' }) as { success: boolean; vehicles?: BrandedVehicle[] };
-      if (res.success && res.vehicles) {
-        const normalizedInput = form.plateNumber.replace(/\s+/g, '').toLowerCase();
-        const match = res.vehicles.find(
-          v => String(v.PlateNumber).replace(/\s+/g, '').toLowerCase() === normalizedInput
-        );
-        if (match) {
-          // 3PL sees the generic error as requested
-          setPlateCheckError(
-            `Duplicate Request: This vehicle plate number is already branded or currently has a pending request.`
-          );
+      const normalizedInput = form.plateNumber.replace(/\s+/g, '').toLowerCase();
+
+      // Check 1: Branded Vehicles (Already Finished)
+      const resBranded = await getBrandedVehicles({ role: 'Admin' }) as { success: boolean; vehicles?: BrandedVehicle[] };
+      if (resBranded.success && resBranded.vehicles?.some(v => String(v.PlateNumber).replace(/\s+/g, '').toLowerCase() === normalizedInput)) {
+        if (form.requestType === 'New Branding Request') {
+          setPlateCheckError('Duplicate Request: This vehicle is already branded.');
+          return;
         }
       }
-    } catch { /* silently ignore plate check errors */ }
+
+      // Check 2: Active Requests/Jobs (Pending or Scheduled)
+      const resJobs = await call('getScheduleJobs', { role: 'Admin' }) as { success: boolean; jobs?: any[] };
+      if (resJobs.success && resJobs.jobs?.some(j => 
+        String(j.PlateNumber).replace(/\s+/g, '').toLowerCase() === normalizedInput && 
+        !['Completed', 'Rejected', 'Did Not Appear'].includes(j.Status)
+      )) {
+        setPlateCheckError('Duplicate Request: This vehicle already has a pending or active request.');
+      }
+    } catch { /* silently ignore check errors */ }
     finally { setCheckingPlate(false); }
   }
 

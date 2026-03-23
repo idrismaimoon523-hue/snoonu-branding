@@ -2,7 +2,7 @@
  * All API calls go through our Next.js API route (/api/appscript)
  * which proxies to the Apps Script Web App (avoids CORS issues).
  */
-async function call<T = Record<string, unknown>>(
+export async function call<T = Record<string, unknown>>(
   action: string,
   payload: Record<string, unknown> = {},
 ): Promise<T> {
