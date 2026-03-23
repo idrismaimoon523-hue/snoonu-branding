@@ -322,23 +322,33 @@ function createRequest(data) {
     const requests      = sheetToObjects(requestsSheet);
     const jobs          = sheetToObjects(jobsSheet);
 
-    const finalStatuses = ['Completed', 'Rejected', 'Did Not Appear'];
+    const finalStatuses = ['completed', 'rejected', 'did not appear'];
 
-    const hasActiveRequest = requests.some(r => {
-      const normalizedRPlate = String(r.PlateNumber || '').replace(/\s+/g, '');
-      return normalizedRPlate === data.plateNumber && !finalStatuses.includes(r.Status);
-    });
+    // Helper to find a value in an object regardless of space/casing in keys
+    const getVal = (obj, key) => {
+      const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
+      for (const k in obj) {
+        if (k.toLowerCase().replace(/\s+/g, '') === normalizedKey) return obj[k];
+      }
+      return undefined;
+    };
 
-    const hasActiveJob = jobs.some(j => {
-      const normalizedJPlate = String(j.PlateNumber || '').replace(/\s+/g, '');
-      return normalizedJPlate === data.plateNumber && !finalStatuses.includes(j.Status);
-    });
+    const isDuplicate = (list, plate) => {
+      return list.some(item => {
+        const itemPlate  = String(getVal(item, 'PlateNumber') || '').replace(/\s+/g, '');
+        const itemStatus = String(getVal(item, 'Status') || '').toLowerCase().trim();
+        return itemPlate === plate && !finalStatuses.includes(itemStatus);
+      });
+    };
+
+    const hasActiveRequest = isDuplicate(requests, data.plateNumber);
+    const hasActiveJob     = isDuplicate(jobs, data.plateNumber);
 
     const brandedSheet      = ss.getSheetByName(SN.BRANDED);
     const brandedVehicles   = sheetToObjects(brandedSheet);
     const isCurrentlyBranded = brandedVehicles.some(b => {
-      const normalizedBPlate = String(b.PlateNumber || '').replace(/\s+/g, '');
-      return normalizedBPlate === data.plateNumber;
+      const bPlate = String(getVal(b, 'PlateNumber') || '').replace(/\s+/g, '');
+      return bPlate === data.plateNumber;
     });
 
     if (hasActiveRequest || hasActiveJob) {
