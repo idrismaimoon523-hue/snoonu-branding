@@ -7,6 +7,10 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   hint?: string;
   options: { value: string; label: string }[] | string[];
   placeholder?: string;
+  value?: string | number | string[];
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  required?: boolean;
+  disabled?: boolean;
 }
 
 export default function Select({

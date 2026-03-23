@@ -6,6 +6,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   hint?: string;
   prefix?: string;
+  placeholder?: string;
+  value?: string | number;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  readOnly?: boolean;
+  type?: string;
 }
 
 export default function Input({ label, error, hint, prefix, className, id, ...props }: InputProps) {

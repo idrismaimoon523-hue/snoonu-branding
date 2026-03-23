@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
 import { getDriver, createRequest, getBrandedVehicles } from '@/lib/api';
 import { CAR_BRANDS, CAR_MODELS, FLEET_TYPES, REQUEST_TYPES, MIN_CAR_YEAR, CURRENT_YEAR } from '@/lib/constants';
@@ -15,6 +15,8 @@ const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - MIN_CAR_YEAR + 1 }, (_,
   String(CURRENT_YEAR - i),
 );
 
+// ddd
+
 interface FormState {
   requestType: string; driverID: string; driverName: string; driverPhone: string;
   companyCode: string; companyName: string; fleetType: string; plateNumber: string;
@@ -27,20 +29,20 @@ const EMPTY: FormState = {
 };
 
 export default function RequestPage() {
-  const [user, setUser]       = useState<AuthUser | null>(null);
-  const [form, setForm]       = useState<FormState>(EMPTY);
-  const [errors, setErrors]   = useState<Partial<FormState>>({});
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY);
+  const [errors, setErrors] = useState<Partial<FormState>>({});
   const [fetchingDriver, setFetchingDriver] = useState(false);
-  const [driverError, setDriverError]       = useState('');
-  const [submitting, setSubmitting]         = useState(false);
-  const [successMsg, setSuccessMsg]         = useState('');
-  const [apiError, setApiError]             = useState('');
+  const [driverError, setDriverError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [apiError, setApiError] = useState('');
   const [plateCheckError, setPlateCheckError] = useState('');
-  const [checkingPlate, setCheckingPlate]   = useState(false);
+  const [checkingPlate, setCheckingPlate] = useState(false);
 
   useEffect(() => {
     const u = getUser();
-    if (u) { setUser(u); setForm(f => ({ ...f, companyCode: u.companyCode, companyName: u.companyName })); }
+    if (u) { setUser(u); setForm((f: FormState) => ({ ...f, companyCode: u.companyCode, companyName: u.companyName })); }
   }, []);
 
   async function fetchDriver() {
@@ -55,9 +57,9 @@ export default function RequestPage() {
         // Restrict to own company drivers
         if (res.driver.companyCode !== user?.companyCode) {
           setDriverError('This driver does not belong to your company.');
-          setForm(f => ({ ...f, driverName: '', driverPhone: '' }));
+          setForm((f: FormState) => ({ ...f, driverName: '', driverPhone: '' }));
         } else {
-          setForm(f => ({ ...f, driverName: res.driver!.driverName, driverPhone: res.driver!.driverPhone }));
+          setForm((f: FormState) => ({ ...f, driverName: res.driver!.driverName, driverPhone: res.driver!.driverPhone }));
         }
       }
     } catch { setDriverError('Error fetching driver'); }
@@ -93,14 +95,14 @@ export default function RequestPage() {
   function validate(): boolean {
     const e: Partial<FormState> = {};
     if (!form.requestType) e.requestType = 'Required';
-    if (!form.driverID)    e.driverID    = 'Required';
-    if (!form.driverName)  e.driverName  = 'Enter a valid Driver ID first';
-    if (!form.fleetType)   e.fleetType   = 'Required';
+    if (!form.driverID) e.driverID = 'Required';
+    if (!form.driverName) e.driverName = 'Enter a valid Driver ID first';
+    if (!form.fleetType) e.fleetType = 'Required';
     if (!form.plateNumber) e.plateNumber = 'Required';
     else if (!form.plateNumber.includes('/')) e.plateNumber = 'Must contain "/"';
     if (!form.carBrand) e.carBrand = 'Required';
     if (!form.carModel) e.carModel = 'Required';
-    if (!form.carYear)  e.carYear  = 'Required';
+    if (!form.carYear) e.carYear = 'Required';
     else if (parseInt(form.carYear) < MIN_CAR_YEAR) e.carYear = `Must be ${MIN_CAR_YEAR} or above`;
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -160,8 +162,8 @@ export default function RequestPage() {
               options={REQUEST_TYPES}
               placeholder="Select request type…"
               value={form.requestType}
-              onChange={e => {
-                setForm(f => ({ ...f, requestType: e.target.value }));
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                setForm((f: FormState) => ({ ...f, requestType: e.target.value }));
                 setPlateCheckError('');
               }}
               required
@@ -178,7 +180,7 @@ export default function RequestPage() {
                   label="Driver ID"
                   placeholder="e.g. DRV001"
                   value={form.driverID}
-                  onChange={e => { setForm(f => ({ ...f, driverID: e.target.value })); setDriverError(''); }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setForm((f: FormState) => ({ ...f, driverID: e.target.value })); setDriverError(''); }}
                   onBlur={fetchDriver}
                   required
                   error={errors.driverID}
@@ -197,10 +199,10 @@ export default function RequestPage() {
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Driver Name"    value={form.driverName}  readOnly placeholder="Auto-filled" error={errors.driverName} />
-              <Input label="Driver Phone"   value={form.driverPhone} readOnly placeholder="Auto-filled" />
-              <Input label="Company Code"   value={form.companyCode} readOnly />
-              <Input label="Company Name"   value={form.companyName} readOnly />
+              <Input label="Driver Name" value={form.driverName} readOnly placeholder="Auto-filled" error={errors.driverName} />
+              <Input label="Driver Phone" value={form.driverPhone} readOnly placeholder="Auto-filled" />
+              <Input label="Company Code" value={form.companyCode} readOnly />
+              <Input label="Company Name" value={form.companyName} readOnly />
             </div>
           </div>
 
@@ -208,12 +210,12 @@ export default function RequestPage() {
             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">Vehicle Information</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select label="Fleet Type" options={FLEET_TYPES} placeholder="Select…" value={form.fleetType}
-                onChange={e => setForm(f => ({ ...f, fleetType: e.target.value }))} required error={errors.fleetType} />
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f: FormState) => ({ ...f, fleetType: e.target.value }))} required error={errors.fleetType} />
               <div>
                 <Input label="Plate Number"
                   placeholder={form.fleetType === 'Bike' ? '7/1298' : '11/11111'}
                   value={form.plateNumber}
-                  onChange={e => { setForm(f => ({ ...f, plateNumber: e.target.value })); setPlateCheckError(''); }}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setForm((f: FormState) => ({ ...f, plateNumber: e.target.value })); setPlateCheckError(''); }}
                   onBlur={checkPlateDuplicate}
                   required hint='Must contain "/" e.g. 11/11111' error={errors.plateNumber} />
                 {checkingPlate && <p className="text-xs text-zinc-400 mt-1">Checking plate…</p>}
@@ -227,11 +229,11 @@ export default function RequestPage() {
                 )}
               </div>
               <Select label="Car Brand" options={CAR_BRANDS} placeholder="Select brand…" value={form.carBrand}
-                onChange={e => setForm(f => ({ ...f, carBrand: e.target.value }))} required error={errors.carBrand} />
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f: FormState) => ({ ...f, carBrand: e.target.value }))} required error={errors.carBrand} />
               <Select label="Car Model" options={CAR_MODELS} placeholder="Select model…" value={form.carModel}
-                onChange={e => setForm(f => ({ ...f, carModel: e.target.value }))} required error={errors.carModel} />
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f: FormState) => ({ ...f, carModel: e.target.value }))} required error={errors.carModel} />
               <Select label="Car Year" options={YEAR_OPTIONS} placeholder="Select year…" value={form.carYear}
-                onChange={e => setForm(f => ({ ...f, carYear: e.target.value }))} required error={errors.carYear} />
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f: FormState) => ({ ...f, carYear: e.target.value }))} required error={errors.carYear} />
             </div>
           </div>
 
